@@ -136,11 +136,15 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     # iptables-save and user supplied resources is consistent.
     hash[:state] = hash[:state].sort unless hash[:state].nil?
 
-    # This forces all existing, commentless rules to be moved to the bottom of the stack.
-    # Puppet-firewall requires that all rules have comments (resource names) and will fail if
-    # a rule in iptables does not have a comment. We get around this by appending a high level
-    if ! hash[:name]
-      hash[:name] = "9999 #{Digest::MD5.hexdigest(line)}"
+    comment_regex = /^(\d{3}) (.+)/
+    if hash[:name] =~ comment_regex
+      # Extract the name and order of existing rules into the type's params.
+      hash[:order], hash[:name] = hash[:name].scan(comment_regex).flatten
+    else
+      # Existing rules without an order will be placed at the bottom of the stack.
+      # Those without any existing comment will get a hash for their name.
+      hash[:name] = "#{Digest::MD5.hexdigest(line)}" if hash[:name].nil?
+      hash[:order] = 9999
     end
 
     hash[:line] = line
@@ -209,6 +213,9 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     resource_list = self.class.instance_variable_get('@resource_list')
     resource_map = self.class.instance_variable_get('@resource_map')
 
+    # Munge a new composite name by prefixing the order.
+    resource[:name] = "#{resource[:order]} #{resource[:name]}"
+
     resource_list.each do |res|
       resource_value = nil
       if (resource[res]) then
@@ -246,13 +253,13 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     
     # Find list of current rules based on chain
     self.class.instances.each do |rule|
-      rules << rule.name if rule.chain == resource[:chain].to_s
+      rules << "#{rule.properties[:order]} #{rule.properties[:name]}" if rule.chain == resource[:chain].to_s
     end
 
     # No rules at all? Just bail now.
     return 1 if rules.empty?
 
-    my_rule = resource[:name].to_s
+    my_rule = "#{resource[:order]} #{resource[:name]}"
     rules << my_rule
     rules.sort.index(my_rule) + 1
   end

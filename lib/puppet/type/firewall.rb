@@ -49,19 +49,24 @@ Puppet::Type.newtype(:firewall) do
 
   newparam(:name) do
     desc <<-EOS
-      The canonical name of the rule. This name is also used for ordering
-      so make sure you prefix the rule with a number:
-
-          000 this runs first
-          999 this runs last
+      The canonical name of the rule.
 
       Depending on the provider, the name of the rule can be stored using
       the comment feature of the underlying firewall subsystem.
     EOS
     isnamevar
+  end
 
-    # Keep rule names simple - they must start with a number
-    newvalues(/^\d+[[:alpha:][:digit:][:punct:][:space:]]+$/)
+  newparam(:order) do
+    desc <<-EOS
+      Three digit integer which determines position within the ruleset.
+      Defaults to *500*.
+
+      Depending on the provider, the order of the rule can be stored using
+      the comment feature of the underlying firewall subsystem.
+    EOS
+    newvalues(/^\d{3}$/)
+    defaultto 500
   end
 
   newproperty(:action) do
