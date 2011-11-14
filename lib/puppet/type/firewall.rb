@@ -57,7 +57,7 @@ Puppet::Type.newtype(:firewall) do
     isnamevar
   end
 
-  newparam(:order) do
+  newproperty(:order) do
     desc <<-EOS
       Three digit integer which determines position within the ruleset.
       Defaults to *500*.

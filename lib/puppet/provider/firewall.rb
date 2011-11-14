@@ -36,6 +36,7 @@ class Puppet::Provider::Firewall < Puppet::Provider
   # unqualified property methods for dynamic property setting and getting.
   def method_missing(meth, *args, &block)
     dynamic_methods = self.class.instance_variable_get('@resource_map').keys
+    dynamic_methods << :order
     dynamic_methods << :chain
     dynamic_methods << :table
     dynamic_methods << :action
