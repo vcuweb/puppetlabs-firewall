@@ -73,8 +73,14 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   def flush
     debug("[flush]")
     if @property_hash.delete(:needs_change)
-      notice("Properties changed - updating rule")
-      update
+      if @property_hash[:order] != resource[:order].to_s
+        notice("Properties changed - replacing rule")
+        delete
+        insert
+      else
+        notice("Properties changed - updating rule")
+        update
+      end
     end
     @property_hash.clear
   end
