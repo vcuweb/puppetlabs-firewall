@@ -32,7 +32,7 @@ Puppet::Type.newtype(:firewall) do
   feature :log_level, "The ability to control the log level"
   feature :log_prefix, "The ability to add prefixes to log messages"
   feature :mark, "Set the netfilter mark value associated with the packet"
-  feature :destination_type, "Match a destination type"
+  feature :addrtype, "Match an address type"
 
   # provider specific features
   feature :iptables, "The provider provides iptables features."
@@ -461,7 +461,28 @@ Puppet::Type.newtype(:firewall) do
     end
   end
 
-  newproperty(:destination_type, :required_features => :destination_type) do
+  newproperty(:stype, :required_features => :addrtype) do
+    desc <<-EOS
+      Sets the source type for traffic.  Allowed values currently are:
+
+      * UNSPEC
+      * UNICAST
+      * LOCAL
+      * BROADCAST
+      * ANYCAST
+      * MULTICAST
+      * BLACKHOLE
+      * UNREACHABLE
+      * PROHIBIT
+      * THROW
+      * NAT
+    EOS
+
+    newvalues(:UNSPEC, :UNICAST, :LOCAL, :BROADCAST, :ANYCAST, :MULTICAST,
+      :BLACKHOLE, :UNREACHABLE, :PROHIBIT, :THROW, :NAT)
+  end
+
+  newproperty(:dtype, :required_features => :addrtype) do
     desc <<-EOS
       Sets the destination type for traffic.  Allowed values currently are:
 
@@ -627,6 +648,5 @@ Puppet::Type.newtype(:firewall) do
     if value(:action) && value(:jump)
       self.fail "Only one of the parameters 'action' and 'jump' can be set"
     end
-
   end
 end

@@ -295,17 +295,19 @@ describe firewall do
     end
   end
 
-  describe ':destination_type' do
-    [:UNSPEC, :UNICAST, :LOCAL, :BROADCAST, :ANYCAST, :MULTICAST,
-      :BLACKHOLE, :UNREACHABLE, :PROHIBIT, :THROW, :NAT].each do |destination_type|
-      it "should accept destination_type value #{destination_type}" do
-        @resource[:destination_type] = destination_type
-        @resource[:destination_type].should == destination_type
+  [:stype, :dtype].each do |addrtype|
+    describe addrtype do
+      [:UNSPEC, :UNICAST, :LOCAL, :BROADCAST, :ANYCAST, :MULTICAST,
+        :BLACKHOLE, :UNREACHABLE, :PROHIBIT, :THROW, :NAT].each do |addrtype_val|
+        it "should accept an #{addrtype} value #{addrtype_val}" do
+          @resource[addrtype] = addrtype_val
+          @resource[addrtype].should == addrtype_val
+        end
       end
     end
 
-    it "should fail when destination_type value is not recognized" do
-      lambda { @resource[:destination_type] = 'foo' }.should raise_error(Puppet::Error)
+    it "should fail when #{addrtype} value is not recognized" do
+      lambda { @resource[addrtype] = 'foo' }.should raise_error(Puppet::Error)
     end
   end
 

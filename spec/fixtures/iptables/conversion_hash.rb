@@ -214,12 +214,20 @@ ARGS_TO_HASH = {
       :outiface => 'eth0.234',
     },
   },
-  'destination_type MULTICAST' => {
+  'stype MULTICAST' => {
+    :line => '-A INPUT -m addrtype --src-type MULTICAST -j ACCEPT',
+    :table => 'filter',
+    :params => {
+      :action => 'accept',
+      :stype => 'MULTICAST',
+    },
+  },
+  'dtype MULTICAST' => {
     :line => '-A INPUT -m addrtype --dst-type MULTICAST -j ACCEPT',
     :table => 'filter',
     :params => {
       :action => 'accept',
-      :destination_type => 'MULTICAST',
+      :dtype => 'MULTICAST',
     },
   },
 }
@@ -432,14 +440,24 @@ HASH_TO_ARGS = {
     },
     :args => ["-t", :filter, "-o", "eth0.234", "-p", :tcp, "-m", "comment", "--comment", "060 outiface", "-j", "DROP"],
   },
-  'dst-type MULTICAST' => {
+  'src-type MULTICAST' => {
     :params => {
-      :name => '061 dst-type',
+      :name => '061 src-type',
       :action => 'accept',
       :chain => 'INPUT',
       :iniface => 'eth0',
-      :destination_type => 'MULTICAST',
+      :stype => 'MULTICAST',
     },
-    :args => ["-t", :filter, "-m", "addrtype", "--dst-type", :MULTICAST, "-i", "eth0", "-p", :tcp, "-m", "comment", "--comment", "061 dst-type", "-j", "ACCEPT"], 
+    :args => ["-t", :filter, "-m", "addrtype", "--src-type", :MULTICAST, "-i", "eth0", "-p", :tcp, "-m", "comment", "--comment", "061 src-type", "-j", "ACCEPT"],
+  },
+  'dst-type MULTICAST' => {
+    :params => {
+      :name => '062 dst-type',
+      :action => 'accept',
+      :chain => 'INPUT',
+      :iniface => 'eth0',
+      :dtype => 'MULTICAST',
+    },
+    :args => ["-t", :filter, "-m", "addrtype", "--dst-type", :MULTICAST, "-i", "eth0", "-p", :tcp, "-m", "comment", "--comment", "062 dst-type", "-j", "ACCEPT"],
   },
 }
