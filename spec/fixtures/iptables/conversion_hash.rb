@@ -225,7 +225,7 @@ ARGS_TO_HASH = {
       :jump     => 'MARK',
       :chain    => 'PREROUTING',
       :set_mark => '0x3e8/0xffffffff',
-    }
+    },
   },
   'iniface_1' => {
     :line => '-A INPUT -i eth0 -m comment --comment "060 iniface" -j DROP',
@@ -553,7 +553,7 @@ HASH_TO_ARGS = {
       :set_mark => '0x32/0xffffffff',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32/0xffffffff', '-j', 'MARK', '--set-xmark', '0x32/0xffffffff'],
-    },
+  },
   'mark_set-mark_hex_with_mask' => {
     :params => {
       :name     => '058 set-mark 0x32/4',
@@ -563,8 +563,8 @@ HASH_TO_ARGS = {
       :set_mark => '0x32/4',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32/4', '-j', 'MARK', '--set-xmark', '0x32/0x4'],
-    },
-    'iniface_1' => {
+  },
+  'iniface_1' => {
     :params => {
       :name => '060 iniface',
       :table => 'filter',
