@@ -71,6 +71,13 @@ describe 'iptables provider' do
     ARGS_TO_HASH.each do |test_name,data|
       describe "for test data '#{test_name}'" do
         let(:resource) { provider.rule_to_hash(data[:line], data[:table], 0) }
+        before {
+          Facter.clear
+          if data[:iptversion]
+            Facter.fact(:iptables_version).stubs(:value).returns(data[:iptversion])
+            Facter.fact(:ip6tables_version).stubs(:value).returns(data[:iptversion])
+          end
+        }
 
         # If this option is enabled, make sure the parameters exactly match
         if data[:compare_all] then
@@ -95,6 +102,13 @@ describe 'iptables provider' do
         let(:resource) { Puppet::Type.type(:firewall).new(data[:params]) }
         let(:provider) { Puppet::Type.type(:firewall).provider(:iptables) }
         let(:instance) { provider.new(resource) }
+        before {
+          Facter.clear
+          if data[:iptversion]
+            Facter.fact(:iptables_version).stubs(:value).returns(data[:iptversion])
+            Facter.fact(:ip6tables_version).stubs(:value).returns(data[:iptversion])
+          end
+        }
 
         it 'general_args should be valid' do
           instance.general_args.flatten.should == data[:args]

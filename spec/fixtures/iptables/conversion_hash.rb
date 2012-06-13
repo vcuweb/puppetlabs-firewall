@@ -218,7 +218,17 @@ ARGS_TO_HASH = {
       :gid => 'root',
     },
   },
-  'mark_set-mark' => {
+  'mark_set-mark-ipt_1.3.2' => {
+    :line => '-t mangle -A PREROUTING -j MARK --set-mark 0x3e8',
+    :table => 'mangle',
+    :params => {
+      :jump     => 'MARK',
+      :chain    => 'PREROUTING',
+      :set_mark => '0x3e8',
+    },
+    :iptversion => '1.3.2',
+  },
+  'mark_set-mark-ipt_1.4.2' => {
     :line => '-t mangle -A PREROUTING -j MARK --set-xmark 0x3e8/0xffffffff',
     :table => 'mangle',
     :params => {
@@ -226,6 +236,7 @@ ARGS_TO_HASH = {
       :chain    => 'PREROUTING',
       :set_mark => '0x3e8/0xffffffff',
     },
+    :iptversion => '1.4.2',
   },
   'iniface_1' => {
     :line => '-A INPUT -i eth0 -m comment --comment "060 iniface" -j DROP',
@@ -524,7 +535,18 @@ HASH_TO_ARGS = {
     },
     :args => ['-t', :mangle, '-p', :all, '-m', 'owner', '--gid-owner', 'root', '-m', 'comment', '--comment', '057 POSTROUTING gid root only', '-j', 'ACCEPT'],
   },
-  'mark_set-mark_int' => {
+  'mark_set-mark_int-ipt_1.3.2' => {
+    :params => {
+      :name     => '058 set-mark 1000',
+      :table    => 'mangle',
+      :jump     => 'MARK',
+      :chain    => 'PREROUTING',
+      :set_mark => '1000',
+    },
+    :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 1000', '-j', 'MARK', '--set-mark', '0x3e8'],
+    :iptversion => '1.3.2',
+  },
+  'mark_set-mark_int-ipt_1.4.2' => {
     :params => {
       :name     => '058 set-mark 1000',
       :table    => 'mangle',
@@ -533,8 +555,20 @@ HASH_TO_ARGS = {
       :set_mark => '1000',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 1000', '-j', 'MARK', '--set-xmark', '0x3e8/0xffffffff'],
+    :iptversion => '1.4.2',
   },
-  'mark_set-mark_hex' => {
+  'mark_set-mark_hex-ipt_1.3.2' => {
+    :params => {
+      :name     => '058 set-mark 0x32',
+      :table    => 'mangle',
+      :jump     => 'MARK',
+      :chain    => 'PREROUTING',
+      :set_mark => '0x32',
+    },
+    :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32', '-j', 'MARK', '--set-mark', '0x32'],
+    :iptversion => '1.3.2',
+  },
+  'mark_set-mark_hex-ipt_1.4.2' => {
     :params => {
       :name     => '058 set-mark 0x32',
       :table    => 'mangle',
@@ -543,8 +577,9 @@ HASH_TO_ARGS = {
       :set_mark => '0x32',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32', '-j', 'MARK', '--set-xmark', '0x32/0xffffffff'],
+    :iptversion => '1.4.2',
   },
-  'mark_set-mark_hex_with_hex_mask' => {
+  'mark_set-mark_hex_with_hex_mask-ipt_1.4.2' => {
     :params => {
       :name     => '058 set-mark 0x32/0xffffffff',
       :table    => 'mangle',
@@ -553,8 +588,9 @@ HASH_TO_ARGS = {
       :set_mark => '0x32/0xffffffff',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32/0xffffffff', '-j', 'MARK', '--set-xmark', '0x32/0xffffffff'],
+    :iptversion => '1.4.2',
   },
-  'mark_set-mark_hex_with_mask' => {
+  'mark_set-mark_hex_with_mask-ipt_1.4.2' => {
     :params => {
       :name     => '058 set-mark 0x32/4',
       :table    => 'mangle',
@@ -563,6 +599,7 @@ HASH_TO_ARGS = {
       :set_mark => '0x32/4',
     },
     :args => ['-t', :mangle, '-p', :tcp, '-m', 'comment', '--comment', '058 set-mark 0x32/4', '-j', 'MARK', '--set-xmark', '0x32/0x4'],
+    :iptversion => '1.4.2',
   },
   'iniface_1' => {
     :params => {
