@@ -34,67 +34,61 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   end
 
   @resource_map = {
+    :chain => "-A",
     :burst => "--limit-burst",
     :destination => "-d",
-    :dport => "-m multiport --dports",
-    :gid => "-m owner --gid-owner",
-    :icmp => "-m icmp --icmp-type",
+    :dport => "--dports",
+    :gid => "--gid-owner",
+    :icmp => "--icmp-type",
     :iniface => "-i",
     :jump => "-j",
-    :limit => "-m limit --limit",
+    :limit => "--limit",
     :log_level => "--log-level",
     :log_prefix => "--log-prefix",
-    :name => "-m comment --comment",
+    :name => "--comment",
     :outiface => "-o",
-    :port => '-m multiport --ports',
+    :port => '--ports',
     :proto => "-p",
     :reject => "--reject-with",
     :set_mark => mark_flag,
     :source => "-s",
-    :sport => "-m multiport --sports",
-    :state => "-m state --state",
+    :sport => "--sports",
+    :state => "--state",
     :table => "-t",
-    :tcp_flags => "-m tcp --tcp-flags",
+    :tcp_flags => "--tcp-flags",
     :todest => "--to-destination",
     :toports => "--to-ports",
     :tosource => "--to-source",
-    :uid => "-m owner --uid-owner",
-    :pkttype => "-m pkttype --pkt-type"
+    :uid => "--uid-owner",
+    :pkttype => "--pkt-type"
   }
 
-  @args_map = {
-      '-A'              => :chain,
-      '-t'              => :table,
-      '--limit-burst'   => :burst,
-      '-d'              => :destination,
-      '--dport'         => :dport,
-      '--dports'        => :dport,
-      '--gid-owner'     => :gid,
-      '--icmp-type'     => :icmp,
-      '-i'              => :iniface,
-      '-j'              => :jump,
-      '--log-level'     => :log_level,
-      '--log-prefix'    => :log_prefix,
-      '--limit'         => :limit,
-      '--comment'       => :name,
-      '-o'              => :outiface,
-      '--ports'         => :port,
+  @args_modules = {
+    '--icmp-type'   => '-m icmp',
+    '--limit'       => '-m limit',
+    '--comment'     => '-m comment',
+    '--ports'       => '-m multiport',
+    '--sports'      => '-m multiport',
+    '--dports'      => '-m multiport',
+    '--state'       => '-m state',
+    '--tcp-flags'   => '-m tcp',
+    '--uid-owner'   => '-m owner',
+    '--gid-owner'   => '-m owner',
+    '--pkt-type'    => '-m pkttype',
+  }
+
+  @args_aliases = {
       '--port'          => :port,
-      '-p'              => :proto,
-      '--reject-with'   => :reject,
-      mark_flag         => :set_mark,
       '-s'              => :source,
       '--sport'         => :sport,
-      '--sports'        => :sport,
-      '--state'         => :state,
-      '--tcp-flags'     => :tcp_flags,
-      '--to-destination'=> :todest,
-      '--to-ports'      => :toports,
+      '-d'              => :destination,
+      '--dport'         => :dport,
       '--to-port'       => :toports,
-      '--to-source'     => :tosource,
-      '--uid-owner'     => :uid,
-      '--pkt-type'      => :pkttype,
   }
+
+  # Invert hash and include aliases for arg to param lookups.
+  @args_map = @resource_map.invert
+  @args_map.merge(@args_aliases)
 
   # This is the order of resources as they appear in iptables-save output,
   # we need it to properly parse and apply rules, if the order of resource
@@ -301,6 +295,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     args = []
     resource_list = self.class.instance_variable_get('@resource_list')
     resource_map = self.class.instance_variable_get('@resource_map')
+    args_modules = self.class.instance_variable_get('@args_modules')
 
     resource_list.each do |res|
       resource_value = nil
@@ -313,7 +308,11 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
         next
       end
 
-      args << resource_map[res].split(' ')
+      # Lookup arguments and any required modules.
+      resource_args = resource_map[res].split(' ')
+      resource_module = args_modules[resource_args[0]]
+      args << resource_module.split(' ') if resource_module
+      args << resource_args
 
       # For sport and dport, convert hyphens to colons since the type
       # expects hyphens for ranges of ports.
