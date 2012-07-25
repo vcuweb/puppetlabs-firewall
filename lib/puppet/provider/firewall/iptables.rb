@@ -34,7 +34,6 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   end
 
   @resource_map = {
-    :chain => "-A",
     :burst => "--limit-burst",
     :destination => "-d",
     :dport => "--dports",
@@ -89,14 +88,6 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   # Invert hash and include aliases for arg to param lookups.
   @args_map = @resource_map.invert
   @args_map.merge(@args_aliases)
-
-  # This is the order of resources as they appear in iptables-save output,
-  # we need it to properly parse and apply rules, if the order of resource
-  # changes between puppet runs, the changed rules will be re-applied again.
-  # This order can be determined by going through iptables source code or just tweaking and trying manually
-  @resource_list = [:table, :source, :destination, :iniface, :outiface,
-    :proto, :tcp_flags, :gid, :uid, :sport, :dport, :port, :pkttype, :name, :state, :icmp, :limit, :burst,
-    :jump, :todest, :tosource, :toports, :log_level, :log_prefix, :reject, :set_mark]
 
   def insert
     debug 'Inserting rule %s' % resource[:name]
@@ -164,6 +155,8 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
 
     while i < row.length
       case row[i]
+      when /-A/
+        hash[:chain] = row[i+1]
       when /-m/
         hash[:modules] << row[i+1]
       when /--comment/
@@ -293,11 +286,10 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     debug "Current resource: %s" % resource.class
 
     args = []
-    resource_list = self.class.instance_variable_get('@resource_list')
     resource_map = self.class.instance_variable_get('@resource_map')
     args_modules = self.class.instance_variable_get('@args_modules')
 
-    resource_list.each do |res|
+    resource_map.each_key do |res|
       resource_value = nil
       if (resource[res]) then
         resource_value = resource[res]
