@@ -99,8 +99,10 @@ describe 'iptables provider' do
         let(:provider) { Puppet::Type.type(:firewall).provider(:iptables) }
         let(:instance) { provider.new(resource) }
 
+        # Compare argument pairs. Order of the pairs does not matter, so
+        # long as each argument is paired with the correct value.
         it 'general_args should be valid' do
-          instance.general_args.flatten.should == data[:args]
+          instance.general_args.flatten.each_slice(2).to_a == data[:args].each_slice(2).to_a
         end
       end
     end

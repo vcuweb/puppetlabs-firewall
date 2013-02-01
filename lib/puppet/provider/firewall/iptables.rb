@@ -36,39 +36,58 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   @resource_map = {
     :burst => "--limit-burst",
     :destination => "-d",
-    :dport => "-m multiport --dports",
-    :gid => "-m owner --gid-owner",
-    :icmp => "-m icmp --icmp-type",
+    :dport => "--dports",
+    :gid => "--gid-owner",
+    :icmp => "--icmp-type",
     :iniface => "-i",
     :jump => "-j",
-    :limit => "-m limit --limit",
+    :limit => "--limit",
     :log_level => "--log-level",
     :log_prefix => "--log-prefix",
-    :name => "-m comment --comment",
+    :name => "--comment",
     :outiface => "-o",
-    :port => '-m multiport --ports',
+    :port => '--ports',
     :proto => "-p",
     :reject => "--reject-with",
     :set_mark => mark_flag,
     :source => "-s",
-    :sport => "-m multiport --sports",
-    :state => "-m state --state",
+    :sport => "--sports",
+    :state => "--state",
     :table => "-t",
-    :tcp_flags => "-m tcp --tcp-flags",
+    :tcp_flags => "--tcp-flags",
     :todest => "--to-destination",
     :toports => "--to-ports",
     :tosource => "--to-source",
-    :uid => "-m owner --uid-owner",
-    :pkttype => "-m pkttype --pkt-type"
+    :uid => "--uid-owner",
+    :pkttype => "--pkt-type"
   }
 
-  # This is the order of resources as they appear in iptables-save output,
-  # we need it to properly parse and apply rules, if the order of resource
-  # changes between puppet runs, the changed rules will be re-applied again.
-  # This order can be determined by going through iptables source code or just tweaking and trying manually
-  @resource_list = [:table, :source, :destination, :iniface, :outiface,
-    :proto, :tcp_flags, :gid, :uid, :sport, :dport, :port, :pkttype, :name, :state, :icmp, :limit, :burst,
-    :jump, :todest, :tosource, :toports, :log_level, :log_prefix, :reject, :set_mark]
+  @args_modules = {
+    '--icmp-type'   => '-m icmp',
+    '--limit'       => '-m limit',
+    '--comment'     => '-m comment',
+    '--ports'       => '-m multiport',
+    '--sports'      => '-m multiport',
+    '--dports'      => '-m multiport',
+    '--state'       => '-m state',
+    '--tcp-flags'   => '-m tcp',
+    '--uid-owner'   => '-m owner',
+    '--gid-owner'   => '-m owner',
+    '--pkt-type'    => '-m pkttype',
+  }
+
+  @args_aliases = {
+      '--port'          => :port,
+      '-s'              => :source,
+      '--sport'         => :sport,
+      '-d'              => :destination,
+      '--dport'         => :dport,
+      '--to-port'       => :toports,
+  }
+
+  # Invert hash and include aliases for arg to param lookups.
+  @args_map = @resource_map.invert
+  @args_map.merge(@args_aliases)
 
   def insert
     debug 'Inserting rule %s' % resource[:name]
@@ -124,25 +143,49 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   def self.rule_to_hash(line, table, counter)
     hash = {}
     keys = []
+    row = []
     values = line.dup
 
-    # --tcp-flags takes two values; we cheat by adding " around it
-    # so it behaves like --comment
-    values = values.sub(/--tcp-flags (\S*) (\S*)/, '--tcp-flags "\1 \2"')
+    row = values.split(%r{\s+})
+    i = 0
+    invertnext = false
 
-    @resource_list.reverse.each do |k|
-      if values.slice!(/\s#{@resource_map[k]}/)
-        keys << k
+    hash[:modules] = []
+    hash[:invert] = {}
+
+    while i < row.length
+      case row[i]
+      when /-A/
+        hash[:chain] = row[i+1]
+      when /-m/
+        hash[:modules] << row[i+1]
+      when /--comment/
+        name = []
+        while not row[i] =~ /"$/
+          i += 1
+          name << row[i]
+        end
+        name = name.join(' ')
+        name = name.gsub(/"/, '')
+        hash[:name] = name
+      when /--tcp-flags/
+        hash[:tcp_flags] = row[i+1] + " " + row[i+2]
+        i += 1
+      when /!/
+        # TODO handle inverse matches
+        invertnext = true
+      else
+        if @args_map[row[i]]
+          hash[ @args_map[row[i]] ] = row[i+1]
+          if invertnext
+            hash[:invert][ @args_map[row[i]] ] = true
+            invertnext = false
+          end
+        end
       end
-    end
+      i += 1
+    end 
 
-    # Manually remove chain
-    values.slice!('-A')
-    keys << :chain
-
-    keys.zip(values.scan(/"[^"]*"|\S+/).reverse) { |f, v| hash[f] = v.gsub(/"/, '') }
-
-    # Normalise all rules to CIDR notation.
     [:source, :destination].each do |prop|
       hash[prop] = Puppet::Util::IPCidr.new(hash[prop]).cidr unless hash[prop].nil?
     end
@@ -194,7 +237,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
       hash[:action] = hash[:jump].downcase
       hash.delete(:jump)
     end
-
+      
     hash
   end
 
@@ -243,10 +286,10 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     debug "Current resource: %s" % resource.class
 
     args = []
-    resource_list = self.class.instance_variable_get('@resource_list')
     resource_map = self.class.instance_variable_get('@resource_map')
+    args_modules = self.class.instance_variable_get('@args_modules')
 
-    resource_list.each do |res|
+    resource_map.each_key do |res|
       resource_value = nil
       if (resource[res]) then
         resource_value = resource[res]
@@ -257,7 +300,11 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
         next
       end
 
-      args << resource_map[res].split(' ')
+      # Lookup arguments and any required modules.
+      resource_args = resource_map[res].split(' ')
+      resource_module = args_modules[resource_args[0]]
+      args << resource_module.split(' ') if resource_module
+      args << resource_args
 
       # For sport and dport, convert hyphens to colons since the type
       # expects hyphens for ranges of ports.
