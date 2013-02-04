@@ -74,6 +74,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     '--uid-owner'   => '-m owner',
     '--gid-owner'   => '-m owner',
     '--pkt-type'    => '-m pkttype',
+    "--reject-with" => '-j REJECT',
   }
 
   @args_aliases = {
