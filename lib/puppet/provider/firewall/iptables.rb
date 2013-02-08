@@ -75,6 +75,8 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     '--gid-owner'   => '-m owner',
     '--pkt-type'    => '-m pkttype',
     "--reject-with" => '-j REJECT',
+    "--log-level"   => '-j LOG',
+    "--log-prefix"  => '-j LOG',
   }
 
   @args_aliases = {
@@ -88,7 +90,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
 
   # Invert hash and include aliases for arg to param lookups.
   @args_map = @resource_map.invert
-  @args_map.merge(@args_aliases)
+  @args_map.merge!(@args_aliases)
 
   def insert
     debug 'Inserting rule %s' % resource[:name]
@@ -160,6 +162,20 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
         hash[:chain] = row[i+1]
       when /-m/
         hash[:modules] << row[i+1]
+      when /--log-prefix/
+        name = []
+        i += 1
+        if (row[i] =~ /^"/ and not row[i] =~ /^".*"$/ )
+            while not row[i] =~ /"$/
+                name << row[i]
+                i += 1
+            end
+            name = name.join(' ')
+        else
+            name = row[i]
+        end
+        name = name.gsub(/"/, '')
+        hash[:log_prefix] = name
       when /--comment/
         name = []
         while not row[i] =~ /"$/
@@ -287,6 +303,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
     debug "Current resource: %s" % resource.class
 
     args = []
+    already_called = Hash.new
     resource_map = self.class.instance_variable_get('@resource_map')
     args_modules = self.class.instance_variable_get('@args_modules')
 
@@ -304,7 +321,10 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
       # Lookup arguments and any required modules.
       resource_args = resource_map[res].split(' ')
       resource_module = args_modules[resource_args[0]]
-      args << resource_module.split(' ') if resource_module
+      if resource_module and not already_called[resource_module] then
+        args << resource_module.split(' ')
+        already_called[resource_module] = 1
+      end
       args << resource_args
 
       # For sport and dport, convert hyphens to colons since the type

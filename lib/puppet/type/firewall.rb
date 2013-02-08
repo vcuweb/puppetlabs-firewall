@@ -355,8 +355,7 @@ Puppet::Type.newtype(:firewall) do
   # Logging properties
   newproperty(:log_level, :required_features => :log_level) do
     desc <<-EOS
-      When combined with jump => "LOG" specifies the system log level to log
-      to.
+      Specifies the system log level.  Implies jump => "LOG".
     EOS
 
     munge do |value|
@@ -375,8 +374,7 @@ Puppet::Type.newtype(:firewall) do
 
   newproperty(:log_prefix, :required_features => :log_prefix) do
     desc <<-EOS
-      When combined with jump => "LOG" specifies the log prefix to use when
-      logging.
+      Specifies the log prefix to use.  Implies jump => LOG
     EOS
   end
 
@@ -667,11 +665,13 @@ Puppet::Type.newtype(:firewall) do
       end
     end
 
-    if value(:log_prefix) || value(:log_level)
-      unless value(:jump).to_s == "LOG"
-        self.fail "Parameter log_prefix and log_level require jump => LOG"
-      end
-    end
+    #if value(:log_prefix) || value(:log_level)
+    #  unless value(:jump).to_s == "LOG"
+    #    self.fail "Parameter log_prefix and log_level require jump => LOG"
+    #  end
+    #end
+    #
+    # Our plan is to change this so that these actually *imply* a jump of LOG.
 
     if value(:burst) && ! value(:limit)
       self.fail "burst makes no sense without limit"
