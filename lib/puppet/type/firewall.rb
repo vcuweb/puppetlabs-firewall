@@ -671,7 +671,10 @@ Puppet::Type.newtype(:firewall) do
     #  end
     #end
     #
-    # Our plan is to change this so that these actually *imply* a jump of LOG.
+    # We changed this (in the iptables provider) so that these
+    # imply a jump of LOG.
+    #FIXME -- do the same for limit, etc., and in iptables6
+    # and any other providers.
 
     if value(:burst) && ! value(:limit)
       self.fail "burst makes no sense without limit"

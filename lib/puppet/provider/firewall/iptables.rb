@@ -322,10 +322,27 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
       resource_args = resource_map[res].split(' ')
       resource_module = args_modules[resource_args[0]]
       if resource_module and not already_called[resource_module] then
+        debug "Adding module: #{resource_module}"
         args << resource_module.split(' ')
         already_called[resource_module] = 1
       end
-      args << resource_args
+
+      # Protocol and jump needs to go to the front (because they can load
+      # modules).
+      if (resource_args[0] =~ /^-[jp]$/) then
+        both = "#{resource_args} #{resource_value}"
+        if (not already_called[both]) then
+          debug "Unshifting: '#{both}"
+          args.unshift(resource_args, resource_value)
+          already_called[both] = 1
+        else
+          debug "Not unshifting #{both} because it was already called"
+        end
+        next
+      else
+        debug "Pushing: '#{resource_args}' (and later, #{resource_value}))}"
+        args << resource_args
+      end
 
       # For sport and dport, convert hyphens to colons since the type
       # expects hyphens for ranges of ports.
