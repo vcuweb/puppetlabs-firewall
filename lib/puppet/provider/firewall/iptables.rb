@@ -34,58 +34,63 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
   end
 
   @resource_map = {
-    :burst => "--limit-burst",
-    :destination => "-d",
-    :dport => "--dports",
-    :gid => "--gid-owner",
-    :icmp => "--icmp-type",
-    :iniface => "-i",
-    :jump => "-j",
-    :limit => "--limit",
-    :log_level => "--log-level",
-    :log_prefix => "--log-prefix",
-    :name => "--comment",
-    :outiface => "-o",
+    :burst => '--limit-burst',
+    :destination => '-d',
+    :dport => '--dports',
+    :gid => '--gid-owner',
+    :icmp => '--icmp-type',
+    :iniface => '-i',
+    :jump => '-j',
+    :limit => '--limit',
+    :log_level => '--log-level',
+    :log_prefix => '--log-prefix',
+    :name => '--comment',
+    :outiface => '-o',
     :port => '--ports',
-    :proto => "-p",
-    :reject => "--reject-with",
+    :proto => '-p',
+    :reject => '--reject-with',
     :set_mark => mark_flag,
-    :source => "-s",
-    :sport => "--sports",
-    :state => "--state",
-    :table => "-t",
-    :tcp_flags => "--tcp-flags",
-    :todest => "--to-destination",
-    :toports => "--to-ports",
-    :tosource => "--to-source",
-    :uid => "--uid-owner",
-    :pkttype => "--pkt-type"
+    :source => '-s',
+    :sport => '--sports',
+    :state => '--state',
+    :table => '-t',
+    :tcp_flags => '--tcp-flags',
+    :todest => '--to-destination',
+    :toports => '--to-ports',
+    :tosource => '--to-source',
+    :uid => '--uid-owner',
+    :pkttype => '--pkt-type'
   }
 
   @args_modules = {
-    '--icmp-type'   => '-m icmp',
-    '--limit'       => '-m limit',
-    '--comment'     => '-m comment',
-    '--ports'       => '-m multiport',
-    '--sports'      => '-m multiport',
-    '--dports'      => '-m multiport',
-    '--state'       => '-m state',
-    '--tcp-flags'   => '-m tcp',
-    '--uid-owner'   => '-m owner',
-    '--gid-owner'   => '-m owner',
-    '--pkt-type'    => '-m pkttype',
-    "--reject-with" => '-j REJECT',
-    "--log-level"   => '-j LOG',
-    "--log-prefix"  => '-j LOG',
+    '--icmp-type'      => '-m icmp',
+    '--limit'          => '-m limit',
+    '--limit-burst'    => '-m limit',
+    '--comment'        => '-m comment',
+    '--ports'          => '-m multiport',
+    '--sports'         => '-m multiport',
+    '--dports'         => '-m multiport',
+    '--state'          => '-m state',
+    '--tcp-flags'      => '-m tcp',
+    '--uid-owner'      => '-m owner',
+    '--gid-owner'      => '-m owner',
+    '--pkt-type'       => '-m pkttype',
+    '--reject-with'    => '-j REJECT',
+    '--log-level'      => '-j LOG',
+    '--log-prefix'     => '-j LOG',
+    '--to-destination' => '-j DNAT',
+    '--to-source'      => '-j SNAT',
+    '--set-mark'       => '-j CONNMARK',
+    '--set-xmark'      => '-j CONNMARK',
   }
 
   @args_aliases = {
-      '--port'          => :port,
-      '-s'              => :source,
-      '--sport'         => :sport,
-      '-d'              => :destination,
-      '--dport'         => :dport,
-      '--to-port'       => :toports,
+      '--port'         => :port,
+      '-s'             => :source,
+      '--sport'        => :sport,
+      '-d'             => :destination,
+      '--dport'        => :dport,
+      '--to-port'      => :toports,
   }
 
   # Invert hash and include aliases for arg to param lookups.
@@ -201,7 +206,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
         end
       end
       i += 1
-    end 
+    end
 
     [:source, :destination].each do |prop|
       hash[prop] = Puppet::Util::IPCidr.new(hash[prop]).cidr unless hash[prop].nil?
@@ -254,7 +259,7 @@ Puppet::Type.type(:firewall).provide :iptables, :parent => Puppet::Provider::Fir
       hash[:action] = hash[:jump].downcase
       hash.delete(:jump)
     end
-      
+
     hash
   end
 
