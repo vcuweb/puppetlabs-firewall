@@ -6,6 +6,19 @@
 # This hash is for testing a line conversion to a hash of parameters
 # which will be used to create a resource.
 ARGS_TO_HASH = {
+  'dport_and_sport' => {
+    :line => '-A nova-compute-FORWARD -s 0.0.0.0/32 -d 255.255.255.255/32 -p udp -m udp --sport 68 --dport 67 -j ACCEPT',
+    :table => 'filter',
+    :params => {
+      :action => 'accept',
+      :chain => 'nova-compute-FORWARD',
+      :source => '0.0.0.0/32',
+      :destination => '255.255.255.255/32',
+      :sport => ['68'],
+      :dport => ['67'],
+      :proto => 'udp',
+    },
+  },
   'long_rule_1' => {
     :line => '-A INPUT -s 1.1.1.1/32 -d 1.1.1.1/32 -p tcp -m multiport --dports 7061,7062 -m multiport --sports 7061,7062 -m comment --comment "000 allow foo" -j ACCEPT',
     :table => 'filter',
@@ -89,6 +102,30 @@ ARGS_TO_HASH = {
       :destination => '2001:db8:4321::/48',
     },
   },
+  'source_destination_negate_source' => {
+    :line => '-A INPUT ! -s 1.1.1.1 -d 2.2.2.2 -m comment --comment "000 negated source address"',
+    :table => 'filter',
+    :params => {
+      :source => '! 1.1.1.1/32',
+      :destination => '2.2.2.2/32',
+    },
+  },
+  'source_destination_negate_destination' => {
+    :line => '-A INPUT -s 1.1.1.1 ! -d 2.2.2.2 -m comment --comment "000 negated destination address"',
+    :table => 'filter',
+    :params => {
+      :source => '1.1.1.1/32',
+      :destination => '! 2.2.2.2/32',
+    },
+  },
+  'source_destination_negate_destination_alternative' => {
+    :line => '-A INPUT -s 1.1.1.1 -d ! 2.2.2.2 -m comment --comment "000 negated destination address alternative"',
+    :table => 'filter',
+    :params => {
+      :source => '1.1.1.1/32',
+      :destination => '! 2.2.2.2/32',
+    },
+  },
   'dport_range_1' => {
     :line => '-A INPUT -m multiport --dports 1:1024 -m comment --comment "000 allow foo"',
     :table => 'filter',
@@ -117,6 +154,34 @@ ARGS_TO_HASH = {
       :sport => ["15","512-1024"],
     },
   },
+  'dst_type_1' => {
+    :line => '-A INPUT -m addrtype --dst-type LOCAL',
+    :table => 'filter',
+    :params => {
+      :dst_type => 'LOCAL',
+    },
+  },
+  'src_type_1' => {
+    :line => '-A INPUT -m addrtype --src-type LOCAL',
+    :table => 'filter',
+    :params => {
+      :src_type => 'LOCAL',
+    },
+  },
+  'dst_range_1' => {
+    :line => '-A INPUT -m iprange --dst-range 10.0.0.2-10.0.0.20',
+    :table => 'filter',
+    :params => {
+      :dst_range => '10.0.0.2-10.0.0.20',
+    },
+  },
+  'src_range_1' => {
+    :line => '-A INPUT -m iprange --src-range 10.0.0.2-10.0.0.20',
+    :table => 'filter',
+    :params => {
+      :src_range => '10.0.0.2-10.0.0.20',
+    },
+  },
   'tcp_flags_1' => {
     :line => '-A INPUT -p tcp -m tcp --tcp-flags SYN,RST,ACK,FIN SYN -m comment --comment "000 initiation"',
     :table => 'filter',
@@ -139,6 +204,14 @@ ARGS_TO_HASH = {
     :table => 'filter',
     :params => {
       :state => ['ESTABLISHED', 'INVALID', 'RELATED'],
+      :action => nil,
+    },
+  },
+  'ctstate_returns_sorted_values' => {
+    :line => '-A INPUT -m conntrack --ctstate INVALID,RELATED,ESTABLISHED',
+    :table => 'filter',
+    :params => {
+      :ctstate => ['ESTABLISHED', 'INVALID', 'RELATED'],
       :action => nil,
     },
   },
@@ -167,12 +240,22 @@ ARGS_TO_HASH = {
       :jump => 'LOG'
     },
   },
-  'load_limit_module' => {
+  'load_limit_module_and_implicit_burst' => {
     :line => '-A INPUT -m multiport --dports 123 -m comment --comment "057 INPUT limit NTP" -m limit --limit 15/hour',
     :table => 'filter',
     :params => {
       :dport => ['123'],
-      :limit => '15/hour'
+      :limit => '15/hour',
+      :burst => '5'
+    },
+  },
+  'limit_with_explicit_burst' => {
+    :line => '-A INPUT -m multiport --dports 123 -m comment --comment "057 INPUT limit NTP" -m limit --limit 30/hour --limit-burst 10',
+    :table => 'filter',
+    :params => {
+      :dport => ['123'],
+      :limit => '30/hour',
+      :burst => '10'
     },
   },
   'proto_ipencap' => {
@@ -287,6 +370,98 @@ ARGS_TO_HASH = {
     :params => {
       :action => 'accept',
       :pkttype => 'multicast',
+    },
+  },
+  'socket_option' => {
+    :line => '-A PREROUTING -m socket -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'PREROUTING',
+      :socket => true,
+    },
+  },
+  'isfragment_option' => {
+    :line => '-A INPUT -f -m comment --comment "010 a-f comment with dashf" -j ACCEPT',
+    :table => 'filter',
+    :params => {
+      :name => '010 a-f comment with dashf',
+      :action => 'accept',
+      :isfragment => true,
+    },
+  },
+  'single_tcp_sport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p tcp -m tcp --sport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "tcp",
+      :sport => ["20443"],
+    },
+  },
+  'single_udp_sport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p udp -m udp --sport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "udp",
+      :sport => ["20443"],
+    },
+  },
+  'single_tcp_dport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p tcp -m tcp --dport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "tcp",
+      :dport => ["20443"],
+    },
+  },
+  'single_udp_dport' => {
+    :line => '-A OUTPUT -s 10.94.100.46/32 -p udp -m udp --dport 20443 -j ACCEPT',
+    :table => 'mangle',
+    :params => {
+      :action => 'accept',
+      :chain => 'OUTPUT',
+      :source => "10.94.100.46/32",
+      :proto => "udp",
+      :dport => ["20443"],
+    },
+  },
+  'connlimit_above' => {
+    :line => '-A INPUT -p tcp -m multiport --dports 22 -m comment --comment "061 REJECT connlimit_above 10" -m connlimit --connlimit-above 10 --connlimit-mask 32 -j REJECT --reject-with icmp-port-unreachable',
+    :table => 'filter',
+    :params => {
+      :proto => 'tcp',
+      :dport => ["22"],
+      :connlimit_above => '10',
+      :action => 'reject',
+    },
+  },
+  'connlimit_above_with_connlimit_mask' => {
+    :line => '-A INPUT -p tcp -m multiport --dports 22 -m comment --comment "061 REJECT connlimit_above 10 with mask 24" -m connlimit --connlimit-above 10 --connlimit-mask 24 -j REJECT --reject-with icmp-port-unreachable',
+    :table => 'filter',
+    :params => {
+      :proto => 'tcp',
+      :dport => ["22"],
+      :connlimit_above => '10',
+      :connlimit_mask => '24',
+      :action => 'reject',
+    },
+  },
+  'connmark' => {
+    :line => '-A INPUT -m comment --comment "062 REJECT connmark" -m connmark --mark 0x1 -j REJECT --reject-with icmp-port-unreachable',
+    :table => 'filter',
+    :params => {
+      :proto => 'all',
+      :connmark => '0x1',
+      :action => 'reject',
     },
   },
 }
@@ -417,6 +592,38 @@ HASH_TO_ARGS = {
     },
     :args => ["-t", :filter, "-p", :tcp, "-m", "multiport", "--dports", "15,512:1024", "-m", "comment", "--comment", "100 sport range"],
   },
+  'dst_type_1' => {
+    :params => {
+      :name => '000 dst_type',
+      :table => 'filter',
+      :dst_type => 'LOCAL',
+    },
+    :args => ['-t', :filter, '-p', :tcp, '-m', 'addrtype', '--dst-type', :LOCAL, '-m', 'comment', '--comment', '000 dst_type'],
+  },
+  'src_type_1' => {
+    :params => {
+      :name => '000 src_type',
+      :table => 'filter',
+      :src_type => 'LOCAL',
+    },
+    :args => ['-t', :filter, '-p', :tcp, '-m', 'addrtype', '--src-type', :LOCAL, '-m', 'comment', '--comment', '000 src_type'],
+  },
+  'dst_range_1' => {
+    :params => {
+      :name => '000 dst_range',
+      :table => 'filter',
+      :dst_range => '10.0.0.1-10.0.0.10',
+    },
+    :args => ['-t', :filter, '-p', :tcp, '-m', 'iprange', '--dst-range', '10.0.0.1-10.0.0.10', '-m', 'comment', '--comment', '000 dst_range'],
+  },
+  'src_range_1' => {
+    :params => {
+      :name => '000 src_range',
+      :table => 'filter',
+      :dst_range => '10.0.0.1-10.0.0.10',
+    },
+    :args => ['-t', :filter, '-p', :tcp, '-m', 'iprange', '--dst-range', '10.0.0.1-10.0.0.10', '-m', 'comment', '--comment', '000 src_range'],
+  },
   'tcp_flags_1' => {
     :params => {
       :name => "000 initiation",
@@ -434,6 +641,15 @@ HASH_TO_ARGS = {
     },
     :args => ["-t", :filter, "-p", :tcp, "-m", "comment", "--comment", "100 states_set_from_array",
       "-m", "state", "--state", "ESTABLISHED,INVALID"],
+  },
+  'ctstates_set_from_array' => {
+    :params => {
+      :name => "100 ctstates_set_from_array",
+      :table => "filter",
+      :ctstate => ['ESTABLISHED', 'INVALID']
+    },
+    :args => ["-t", :filter, "-p", :tcp, "-m", "comment", "--comment", "100 ctstates_set_from_array",
+      "-m", "conntrack", "--ctstate", "ESTABLISHED,INVALID"],
   },
   'comment_string_character_validation' => {
     :params => {
@@ -471,7 +687,7 @@ HASH_TO_ARGS = {
     },
     :args => ['-t', :filter, '-p', :tcp, '-m', 'comment', '--comment', '956 INPUT log-level', '-m', 'state', '--state', 'NEW', '-j', 'LOG', '--log-level', '4'],
   },
-  'load_limit_module' => {
+  'load_limit_module_and_implicit_burst' => {
     :params => {
       :name => '057 INPUT limit NTP',
       :table => 'filter',
@@ -479,6 +695,16 @@ HASH_TO_ARGS = {
       :limit => '15/hour'
     },
     :args => ['-t', :filter, '-p', :tcp, '-m', 'multiport', '--dports', '123', '-m', 'comment', '--comment', '057 INPUT limit NTP', '-m', 'limit', '--limit', '15/hour'],
+  },
+  'limit_with_explicit_burst' => {
+    :params => {
+      :name => '057 INPUT limit NTP',
+      :table => 'filter',
+      :dport => '123',
+      :limit => '30/hour',
+      :burst => '10'
+    },
+    :args => ['-t', :filter, '-p', :tcp, '-m', 'multiport', '--dports', '123', '-m', 'comment', '--comment', '057 INPUT limit NTP', '-m', 'limit', '--limit', '30/hour', '--limit-burst', '10'],
   },
   'proto_ipencap' => {
     :params => {
@@ -642,5 +868,67 @@ HASH_TO_ARGS = {
       :pkttype => 'multicast',
     },
     :args => ["-t", :filter, "-i", "eth0", "-p", :tcp, "-m", "pkttype", "--pkt-type", :multicast, "-m", "comment", "--comment", "062 pkttype multicast", "-j", "ACCEPT"],
+  },
+  'socket_option' => {
+    :params => {
+      :name => '050 socket option',
+      :table => 'mangle',
+      :action => 'accept',
+      :chain => 'PREROUTING',
+      :socket => true,
+    },
+    :args => ['-t', :mangle, '-p', :tcp, '-m', 'socket', '-m', 'comment', '--comment', '050 socket option', '-j', 'ACCEPT'],
+  },
+  'isfragment_option' => {
+    :params => {
+      :name => '050 isfragment option',
+      :table => 'filter',
+      :proto => :all,
+      :action => 'accept',
+      :isfragment => true,
+    },
+    :args => ['-t', :filter, '-p', :all, '-f', '-m', 'comment', '--comment', '050 isfragment option', '-j', 'ACCEPT'],
+  },
+  'isfragment_option not changing -f in comment' => {
+    :params => {
+      :name => '050 testcomment-with-fdashf',
+      :table => 'filter',
+      :proto => :all,
+      :action => 'accept',
+    },
+    :args => ['-t', :filter, '-p', :all, '-m', 'comment', '--comment', '050 testcomment-with-fdashf', '-j', 'ACCEPT'],
+  },
+  'connlimit_above' => {
+    :params => {
+      :name => '061 REJECT connlimit_above 10',
+      :table => 'filter',
+      :proto => 'tcp',
+      :dport => ["22"],
+      :connlimit_above => '10',
+      :action => 'reject',
+    },
+    :args => ["-t", :filter, "-p", :tcp, "-m", "multiport", "--dports", "22", "-m", "comment", "--comment", "061 REJECT connlimit_above 10", "-j", "REJECT", "-m", "connlimit", "--connlimit-above", "10"],
+  },
+  'connlimit_above_with_connlimit_mask' => {
+    :params => {
+      :name => '061 REJECT connlimit_above 10 with mask 24',
+      :table => 'filter',
+      :proto => 'tcp',
+      :dport => ["22"],
+      :connlimit_above => '10',
+      :connlimit_mask => '24',
+      :action => 'reject',
+    },
+    :args => ["-t", :filter, "-p", :tcp, "-m", "multiport", "--dports", "22", "-m", "comment", "--comment", "061 REJECT connlimit_above 10 with mask 24", "-j", "REJECT", "-m", "connlimit", "--connlimit-above", "10", "--connlimit-mask", "24"],
+  },
+  'connmark' => {
+    :params => {
+      :name => '062 REJECT connmark',
+      :table => 'filter',
+      :proto => 'all',
+      :connmark => '0x1',
+      :action => 'reject',
+    },
+    :args => ["-t", :filter, "-p", :all, "-m", "comment", "--comment", "062 REJECT connmark", "-j", "REJECT", "-m", "connmark", "--mark", "0x1"],
   },
 }

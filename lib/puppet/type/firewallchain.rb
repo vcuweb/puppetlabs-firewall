@@ -1,4 +1,14 @@
+# This is a workaround for bug: #4248 whereby ruby files outside of the normal
+# provider/type path do not load until pluginsync has occured on the puppetmaster
+#
+# In this case I'm trying the relative path first, then falling back to normal
+# mechanisms. This should be fixed in future versions of puppet but it looks
+# like we'll need to maintain this for some time perhaps.
+$LOAD_PATH.unshift(File.join(File.dirname(__FILE__),"..",".."))
+require 'puppet/util/firewall'
+
 Puppet::Type.newtype(:firewallchain) do
+  include Puppet::Util::Firewall
 
   @doc = <<-EOS
     This type provides the capability to manage rule chains for firewalls.
@@ -6,6 +16,11 @@ Puppet::Type.newtype(:firewallchain) do
     Currently this supports only iptables, ip6tables and ebtables on Linux. And
     provides support for setting the default policy on chains and tables that
     allow it.
+
+    **Autorequires:**
+    If Puppet is managing the iptables or iptables-persistent packages, and
+    the provider is iptables_chain, the firewall resource will autorequire
+    those packages to ensure that any required binaries are installed.
   EOS
 
   feature :iptables_chain, "The provider provides iptables chain features."
@@ -41,8 +56,8 @@ Puppet::Type.newtype(:firewallchain) do
             raise ArgumentError, "PREROUTING, POSTROUTING, INPUT, FORWARD and OUTPUT are the only inbuilt chains that can be used in table 'mangle'"
           end
         when 'nat'
-          if chain =~ /^(BROUTING|INPUT|FORWARD)$/
-            raise ArgumentError, "PREROUTING, POSTROUTING and OUTPUT are the only inbuilt chains that can be used in table 'nat'"
+          if chain =~ /^(BROUTING|FORWARD)$/
+            raise ArgumentError, "PREROUTING, POSTROUTING, INPUT, and OUTPUT are the only inbuilt chains that can be used in table 'nat'"
           end
           if protocol =~/^(IP(v6)?)?$/
             raise ArgumentError, "table nat isn't valid in IPv6. You must specify ':IPv4' as the name suffix"
@@ -90,6 +105,58 @@ Puppet::Type.newtype(:firewallchain) do
     end
   end
 
+  newparam(:purge, :boolean => true) do
+    desc <<-EOS
+      Purge unmanaged firewall rules in this chain
+    EOS
+    newvalues(:false, :true)
+    defaultto :false
+  end
+
+  newparam(:ignore) do
+    desc <<-EOS
+      Regex to perform on firewall rules to exempt unmanaged rules from purging (when enabled).
+      This is matched against the output of `iptables-save`.
+
+      This can be a single regex, or an array of them.
+      To support flags, use the ruby inline flag mechanism.
+      Meaning a regex such as
+        /foo/i
+      can be written as
+        '(?i)foo' or '(?i:foo)'
+
+      Full example:
+      firewallchain { 'INPUT:filter:IPv4':
+        purge => true,
+        ignore => [
+          '-j fail2ban-ssh', # ignore the fail2ban jump rule
+          '--comment "[^"]*(?i:ignore)[^"]*"', # ignore any rules with "ignore" (case insensitive) in the comment in the rule
+        ],
+      }
+    EOS
+
+    validate do |value|
+      unless value.is_a?(Array) or value.is_a?(String) or value == false
+        self.devfail "Ignore must be a string or an Array"
+      end
+    end
+    munge do |patterns| # convert into an array of {Regex}es
+      patterns = [patterns] if patterns.is_a?(String)
+      patterns.map{|p| Regexp.new(p)}
+    end
+  end
+
+  # Classes would be a better abstraction, pending:
+  # http://projects.puppetlabs.com/issues/19001
+  autorequire(:package) do
+    case value(:provider)
+    when :iptables_chain
+      %w{iptables iptables-persistent}
+    else
+      []
+    end
+  end
+
   validate do
     debug("[validate]")
 
@@ -121,5 +188,35 @@ Puppet::Type.newtype(:firewallchain) do
 
       self.fail 'The "nat" table is not intended for filtering, the use of DROP is therefore inhibited'
     end
+  end
+
+  def generate
+    return [] unless self.purge?
+
+    value(:name).match(Nameformat)
+    chain = $1
+    table = $2
+    protocol = $3
+
+    provider = case protocol
+               when 'IPv4'
+                 :iptables
+               when 'IPv6'
+                 :ip6tables
+               end
+
+    # gather a list of all rules present on the system
+    rules_resources = Puppet::Type.type(:firewall).instances
+
+    # Keep only rules in this chain
+    rules_resources.delete_if { |res| (res[:provider] != provider or res.provider.properties[:table].to_s != table or res.provider.properties[:chain] != chain) }
+
+    # Remove rules which match our ignore filter
+    rules_resources.delete_if {|res| value(:ignore).find_index{|f| res.provider.properties[:line].match(f)}} if value(:ignore)
+
+    # We mark all remaining rules for deletion, and then let the catalog override us on rules which should be present
+    rules_resources.each {|res| res[:ensure] = :absent}
+
+    rules_resources
   end
 end
